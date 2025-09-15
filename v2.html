@@ -1,0 +1,994 @@
+<!--
+File: v2.html
+Project: Aitea-Building
+File Created: Monday, 15th September 2025 4:17:03 pm
+Author: Daniel Rodríguez Cabrera (daniel.rodriguez@aerin.es)
+Version: 2.0.0
+-----
+Last Modified: Monday, 15th September 2025 4:32:13 pm
+Modified By: Daniel Rodríguez Cabrera
+-----
+Copyright (c) 2023 - 2025 Aerin Sistemas S. L. copying, distribution or modification not authorised in writing is prohibited.
+-->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Match Madness (Parejas Locas)</title>
+    <style>
+      /* ——————————————————————————————————————————————————————
+       Estética minimal oscura, dos columnas x 5 filas SIEMPRE
+       —————————————————————————————————————————————————————— */
+      :root {
+        --bg: #0b1020;
+        --panel: #0f172a;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --card: #111827;
+        --card-2: #0b0f1d;
+        --border: #334155;
+        --accent: #22c55e;
+        --accent2: #38bdf8;
+        --danger: #ef4444;
+        --ok: #16a34a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, var(--bg), #070a14 70%);
+        color: var(--text);
+        font-family: system-ui, Segoe UI, Inter, Roboto, Ubuntu, Arial;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: rgba(11, 16, 32, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.2px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        margin-top: 0.4rem;
+      }
+      .hud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+        margin-top: 0.4rem;
+      }
+      select,
+      button,
+      input {
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        padding: 0.45rem 0.65rem;
+      }
+      button.primary {
+        background: linear-gradient(180deg, var(--accent2), #0ea5e9);
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.secondary {
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .pill {
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: center;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 0.3rem 0.55rem;
+        border-radius: 999px;
+      }
+      .progress {
+        position: relative;
+        height: 10px;
+        width: 220px;
+        border-radius: 999px;
+        background: #0a0f1a;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+      .bar {
+        position: absolute;
+        inset: 0 100% 0 0;
+        background: linear-gradient(90deg, var(--accent), #a3e635);
+      }
+
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 12px;
+      }
+
+      /* Board: dos columnas, cinco filas por columna */
+      .board {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .col {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .col h3 {
+        margin: 0 0 6px 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+      .list {
+        display: grid;
+        grid-template-rows: repeat(5, minmax(64px, 1fr));
+        gap: 8px;
+      }
+
+      .card {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, var(--card), var(--card-2));
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        cursor: pointer;
+        user-select: none;
+        transition: transform 0.06s ease, box-shadow 0.2s ease,
+          border-color 0.2s ease;
+      }
+      .card:hover {
+        transform: translateY(-1px);
+      }
+      .card.selected {
+        outline: 2px solid var(--accent);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18) inset;
+      }
+      .card.matched {
+        background: linear-gradient(180deg, #062b18, #0a3b22);
+        border-color: #14532d;
+        color: #bbf7d0;
+      }
+      .card.wrong {
+        animation: shake 0.25s linear;
+      }
+      @keyframes shake {
+        25% {
+          transform: translateX(-3px);
+        }
+        50% {
+          transform: translateX(3px);
+        }
+        75% {
+          transform: translateX(-2px);
+        }
+        100% {
+          transform: translateX(0);
+        }
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 12px;
+      }
+      details summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .footer {
+        opacity: 0.85;
+        text-align: center;
+        font-size: 0.9rem;
+        margin: 16px 0;
+        color: var(--muted);
+      }
+      .help pre {
+        white-space: pre-wrap;
+        background: #0b1020;
+        padding: 0.75rem;
+        border-radius: 0.6rem;
+        border: 1px solid var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        Match Madness
+        <span style="opacity: 0.7; font-weight: 600">(parejas locas)</span>
+      </h1>
+      <div class="controls">
+        <label
+          >Level
+          <select id="levelSelect"></select
+        ></label>
+        <label
+          >Repeats/Pair
+          <input
+            id="repeatsInput"
+            type="number"
+            min="1"
+            value="5"
+            style="width: 80px"
+        /></label>
+        <label
+          >Time (s)
+          <input
+            id="timeInput"
+            type="number"
+            min="15"
+            step="5"
+            value="90"
+            style="width: 90px"
+        /></label>
+        <button id="playBtn" class="primary">Play</button>
+        <button id="resetBtn" class="secondary">Reset</button>
+      </div>
+      <div class="hud">
+        <div class="pill"><strong>Score</strong><span id="score">0</span></div>
+        <div class="pill">
+          <strong>Progress</strong><span id="done">0</span>/<span id="target"
+            >0</span
+          >
+        </div>
+        <div class="progress" title="Time">
+          <div class="bar" id="timeBar"></div>
+        </div>
+        <div class="pill">
+          <strong>Total</strong><span id="totalScore">0</span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Dos columnas (izquierda: idioma L, derecha: idioma R) -->
+      <section id="board" class="board" aria-live="polite" hidden>
+        <div class="col">
+          <h3 id="leftLabel">Left</h3>
+          <div class="list" id="leftList"></div>
+        </div>
+        <div class="col">
+          <h3 id="rightLabel">Right</h3>
+          <div class="list" id="rightList"></div>
+        </div>
+      </section>
+
+      <section class="panel help">
+        <h3>Formato de vocabulario (JSON) y niveles</h3>
+        <p style="color: #94a3b8">
+          Edita tu vocabulario por niveles. Se guarda en <em>localStorage</em>.
+          Puedes exportar/importar.
+        </p>
+        <details>
+          <summary>Gestionar vocabulario</summary>
+          <div
+            style="
+              display: flex;
+              gap: 1rem;
+              flex-wrap: wrap;
+              margin-top: 0.75rem;
+            "
+          >
+            <textarea
+              id="jsonEditor"
+              style="
+                width: min(100%, 800px);
+                height: 260px;
+                background: #0b1020;
+                color: #e5e7eb;
+                border: 1px solid #334155;
+                border-radius: 0.6rem;
+                padding: 0.75rem;
+              "
+            ></textarea>
+            <div style="min-width: 240px; flex: 1">
+              <button
+                id="saveJson"
+                class="primary"
+                style="width: 100%; margin-bottom: 0.5rem"
+              >
+                Save JSON
+              </button>
+              <button
+                id="downloadJson"
+                class="secondary"
+                style="width: 100%; margin-bottom: 0.5rem"
+              >
+                Download JSON
+              </button>
+              <input
+                id="uploadFile"
+                type="file"
+                accept="application/json"
+                style="width: 100%"
+              />
+            </div>
+          </div>
+          <p style="color: #94a3b8">Estructura del JSON:</p>
+          <pre><code>{
+  "meta": {"leftLabel": "es", "rightLabel": "en", "defaultTime": 90, "defaultRepeats": 5},
+  "levels": {
+    "A1 Basics": {
+      "pairs": [
+        {"l": "para", "r": "for"}, {"l": "fiesta", "r": "party"},
+        {"l": "de", "r": "of"}, {"l": "maíz", "r": "corn"},
+        {"l": "hasta", "r": "until"}, {"l": "pan", "r": "bread"},
+        {"l": "agua", "r": "water"}, {"l": "coche", "r": "car"},
+        {"l": "gato", "r": "cat"}, {"l": "perro", "r": "dog"}
+      ]
+    }
+  }
+}</code></pre>
+        </details>
+      </section>
+
+      <p class="footer">
+        Consejo: los puntos por acierto/fallo están en variables globales
+        <code>window.GAME_CONFIG</code>.
+      </p>
+    </main>
+
+    <template id="btnTpl"
+      ><button class="card" data-key="" data-side=""></button
+    ></template>
+
+    <script>
+      // ————————————————————————————————————————————————————————————
+      // Código en inglés; comentarios en español.
+      // Requisitos clave de Daniel:
+      //  - Siempre 10 elementos visibles (2 columnas x 5 filas).
+      //  - Al acertar una pareja: desaparece y entra otra, y se reordena ANTES
+      //    de poder volver a seleccionar.
+      //  - Practicar TODAS las parejas al menos N veces (N configurable).
+      //  - Puntos por acierto y penalización mayor por fallo (valores globales).
+      //  - Mensaje de “nivel completado” al acabar; suma a un total acumulado.
+      // ————————————————————————————————————————————————————————————
+
+      // Global config (editable desde la consola)
+      window.GAME_CONFIG = {
+        VISIBLE_PAIRS: 5, // 5 parejas => 10 tarjetas visibles
+        CORRECT_POINTS: 120, // puntos al acertar
+        WRONG_PENALTY: 180, // puntos que se restan si fallas (mayor que acierto)
+        REPEATS_PER_PAIR: 5, // valor por defecto si no se toca el input
+      };
+
+      const storageKey = 'mm_vocab_v2';
+      const totalKey = 'mm_total_points';
+      const bestKey = (lvl) => `mm_best_v2_${lvl}`;
+
+      const $ = (s, r = document) => r.querySelector(s);
+      const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+      function shuffle(a) {
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function DEFAULT_JSON() {
+        return {
+          meta: {
+            leftLabel: 'es',
+            rightLabel: 'en',
+            defaultTime: 90,
+            defaultRepeats: 5,
+          },
+          levels: {
+            'A1 Basics': {
+              pairs: [
+                { l: 'para', r: 'for' },
+                { l: 'fiesta', r: 'party' },
+                { l: 'de', r: 'of' },
+                { l: 'maíz', r: 'corn' },
+                { l: 'hasta', r: 'until' },
+                { l: 'pan', r: 'bread' },
+                { l: 'agua', r: 'water' },
+                { l: 'coche', r: 'car' },
+                { l: 'gato', r: 'cat' },
+                { l: 'perro', r: 'dog' },
+              ],
+            },
+            'A2 Travel': {
+              pairs: [
+                { l: 'aeropuerto', r: 'airport' },
+                { l: 'billete', r: 'ticket' },
+                { l: 'tren', r: 'train' },
+                { l: 'hotel', r: 'hotel' },
+                { l: 'mapa', r: 'map' },
+                { l: 'dirección', r: 'address' },
+                { l: 'izquierda', r: 'left' },
+                { l: 'derecha', r: 'right' },
+                { l: 'arriba', r: 'up' },
+                { l: 'abajo', r: 'down' },
+              ],
+            },
+            'Class week 15 Sept': {
+              pairs: [
+                // Question words (base)
+                { l: 'cuál', r: 'which' },
+                { l: 'de quién', r: 'whose' },
+                { l: 'cómo', r: 'how' },
+                { l: 'por qué', r: 'why' },
+                { l: 'dónde', r: 'where' },
+                { l: 'qué', r: 'what' },
+                { l: 'quién', r: 'who' },
+
+                // Question words (frases)
+                { l: '¿Cuál te gusta más?', r: 'Which do you like more?' },
+                {
+                  l: '¿Cuál de estos libros es tuyo?',
+                  r: 'Which of these books is yours?',
+                },
+                { l: '¿De quién es este abrigo?', r: 'Whose coat is this?' },
+                { l: '¿Cómo lo hiciste?', r: 'How did you do it?' },
+                { l: '¿Cómo llego al centro?', r: 'How do I get downtown?' },
+                {
+                  l: '¿Por qué llegaste tarde?',
+                  r: 'Why did you arrive late?',
+                },
+                { l: '¿Por qué no viniste?', r: 'Why didn’t you come?' },
+                { l: '¿Dónde naciste?', r: 'Where were you born?' },
+                { l: '¿Dónde debería esperar?', r: 'Where should I wait?' },
+                { l: '¿Qué significa esto?', r: 'What does this mean?' },
+                { l: '¿Qué hora es?', r: 'What time is it?' },
+                { l: '¿Quién viene contigo?', r: 'Who is coming with you?' },
+                { l: '¿Quién te llamó?', r: 'Who called you?' },
+                { l: '¿Qué quieres decir?', r: 'What do you mean?' },
+                { l: '¿Qué tan lejos está?', r: 'How far is it?' },
+
+                // BRING
+                { l: 'traer', r: 'bring' },
+                {
+                  l: '¿Puedes traerme agua?',
+                  r: 'Can you bring me some water?',
+                },
+                {
+                  l: 'Trae tu portátil a la reunión.',
+                  r: 'Bring your laptop to the meeting.',
+                },
+                {
+                  l: 'Acuérdate de traer tu pasaporte.',
+                  r: 'Remember to bring your passport.',
+                },
+                {
+                  l: 'Trae a tu amigo si quieres.',
+                  r: 'Bring your friend if you want.',
+                },
+                {
+                  l: '¿Puedes traer de vuelta el paraguas mañana?',
+                  r: 'Can you bring the umbrella back tomorrow?',
+                },
+                { l: 'No saques ese tema.', r: 'Don’t bring that topic up.' },
+                {
+                  l: 'Tráelo aquí, no te lo lleves.',
+                  r: 'Bring it here, don’t take it away.',
+                },
+
+                // BORROW
+                { l: 'pedir prestado', r: 'borrow' },
+                {
+                  l: '¿Puedo pedirte prestado tu bolígrafo?',
+                  r: 'Can I borrow your pen?',
+                },
+                {
+                  l: 'Le pedí prestado dinero a mi hermano.',
+                  r: 'I borrowed money from my brother.',
+                },
+                {
+                  l: '¿Durante cuánto tiempo puedo pedirlo prestado?',
+                  r: 'How long can I borrow it?',
+                },
+                {
+                  l: 'No me gusta pedir prestado.',
+                  r: 'I don’t like to borrow.',
+                },
+                {
+                  l: 'No confundas “borrow” (recibir) con “lend” (dar).',
+                  r: 'Don’t confuse “borrow” (receive) with “lend” (give).',
+                },
+
+                // CARRY
+                { l: 'llevar / cargar', r: 'carry' },
+                {
+                  l: 'Lleva la caja con cuidado.',
+                  r: 'Carry the box carefully.',
+                },
+                {
+                  l: 'Siempre llevo mi pasaporte conmigo.',
+                  r: 'I always carry my passport with me.',
+                },
+                {
+                  l: '¿Tienes equipaje de mano?',
+                  r: 'Do you have a carry-on bag?',
+                },
+                {
+                  l: 'Tenemos que llevar a cabo el plan.',
+                  r: 'We need to carry out the plan.',
+                },
+                { l: 'Sigue, no pares.', r: 'Carry on, don’t stop.' },
+                {
+                  l: 'Tu voz no se oye en esta sala.',
+                  r: 'Your voice doesn’t carry in this room.',
+                },
+
+                // STEAL
+                { l: 'robar (algo)', r: 'steal' },
+                { l: 'Alguien me robó la bici.', r: 'Someone stole my bike.' },
+                {
+                  l: 'Le robaron el teléfono a Ana.',
+                  r: 'They stole Ana’s phone.',
+                },
+                {
+                  l: 'El ladrón robó dinero de la caja.',
+                  r: 'The thief stole money from the till.',
+                },
+                {
+                  l: 'Su actuación se llevó todo el protagonismo.',
+                  r: 'Her performance stole the show.',
+                },
+                { l: 'Es una ganga.', r: 'It’s a steal.' },
+
+                // FORGET
+                { l: 'olvidar', r: 'forget' },
+                { l: 'Olvidé mis llaves.', r: 'I forgot my keys.' },
+                { l: 'No te olvides de llamar.', r: 'Don’t forget to call.' },
+                {
+                  l: 'Olvidé hacer los deberes.',
+                  r: 'I forgot to do my homework.',
+                },
+                {
+                  l: 'Nunca olvidaré haberlo visto.',
+                  r: 'I’ll never forget seeing it.',
+                },
+                { l: 'Olvídate de eso.', r: 'Forget about it.' },
+                { l: 'Se me olvidó tu nombre.', r: 'I forgot your name.' },
+
+                // GUESS
+                { l: 'adivinar / suponer', r: 'guess' },
+                { l: 'Adivina la respuesta.', r: 'Guess the answer.' },
+                { l: 'Supongo que sí.', r: 'I guess so.' },
+                {
+                  l: 'Fue una suposición fundamentada.',
+                  r: 'It was an educated guess.',
+                },
+                { l: '¿Adivina qué?', r: 'Guess what?' },
+                { l: 'Adiviné bien.', r: 'I guessed right.' },
+                { l: 'Me equivoqué al adivinar.', r: 'I guessed wrong.' },
+
+                // HAPPEN
+                { l: 'ocurrir / pasar', r: 'happen' },
+                { l: '¿Qué pasó?', r: 'What happened?' },
+                { l: 'Pasa a menudo.', r: 'It happens a lot.' },
+                {
+                  l: 'Puede pasarle a cualquiera.',
+                  r: 'It can happen to anyone.',
+                },
+                {
+                  l: 'Di con él por casualidad.',
+                  r: 'I happened to run into him.',
+                },
+                { l: 'Pase lo que pase…', r: 'Whatever happens…' },
+
+                // ENHANCE
+                { l: 'mejorar / potenciar', r: 'enhance' },
+                {
+                  l: 'Estas gafas mejoran mi visión.',
+                  r: 'These glasses enhance my vision.',
+                },
+                {
+                  l: 'El limón realza el sabor.',
+                  r: 'Lemon enhances the flavor.',
+                },
+                {
+                  l: 'El software mejora la seguridad.',
+                  r: 'The software enhances security.',
+                },
+                {
+                  l: 'El maquillaje realza su belleza.',
+                  r: 'Makeup enhances her beauty.',
+                },
+
+                // DEPLOY
+                { l: 'desplegar / implementar', r: 'deploy' },
+                {
+                  l: 'El ejército desplegó tropas.',
+                  r: 'The army deployed troops.',
+                },
+                {
+                  l: 'Implementaron la nueva estrategia.',
+                  r: 'They deployed the new strategy.',
+                },
+                {
+                  l: 'Desplegaron el sistema de seguridad.',
+                  r: 'They deployed the security system.',
+                },
+                {
+                  l: 'El software se implementa automáticamente.',
+                  r: 'The software deploys automatically.',
+                },
+              ],
+            },
+          },
+        };
+      }
+
+      function loadVocab() {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey)) || DEFAULT_JSON();
+        } catch {
+          return DEFAULT_JSON();
+        }
+      }
+      function saveVocab(obj) {
+        localStorage.setItem(storageKey, JSON.stringify(obj));
+      }
+
+      // Estado del juego
+      const state = {
+        json: loadVocab(),
+        levelName: '',
+        queue: [], // cola de parejas a practicar (replicadas N veces)
+        leftCards: [], // 5 botones lado izquierdo
+        rightCards: [], // 5 botones lado derecho
+        first: null, // primer botón seleccionado
+        lock: false,
+        matched: 0, // parejas acertadas en esta partida
+        target: 0, // total a completar = pairs * repeats
+        score: 0, // puntos de esta partida
+        timer: null,
+        tStart: 0,
+        timeLimit: 90,
+      };
+
+      // UI init
+      function init() {
+        const lvSel = $('#levelSelect');
+        lvSel.innerHTML = Object.keys(state.json.levels)
+          .map((n) => `<option value="${n}">${n}</option>`)
+          .join('');
+        state.levelName = lvSel.value = Object.keys(state.json.levels)[0];
+
+        $('#jsonEditor').value = JSON.stringify(state.json, null, 2);
+        const meta = state.json.meta || {};
+        $('#timeInput').value = meta.defaultTime ?? 90;
+        $('#repeatsInput').value =
+          meta.defaultRepeats ?? window.GAME_CONFIG.REPEATS_PER_PAIR;
+        $('#leftLabel').textContent = meta.leftLabel || 'L';
+        $('#rightLabel').textContent = meta.rightLabel || 'R';
+
+        $('#playBtn').addEventListener('click', startGame);
+        $('#resetBtn').addEventListener('click', resetGame);
+        lvSel.addEventListener('change', (e) => {
+          state.levelName = e.target.value;
+        });
+        $('#saveJson').addEventListener('click', onSaveJson);
+        $('#downloadJson').addEventListener('click', onDownloadJson);
+        $('#uploadFile').addEventListener('change', onUploadJson);
+
+        $('#totalScore').textContent = Number(
+          localStorage.getItem(totalKey) || 0
+        );
+      }
+
+      // Preparar cola de práctica (todas las parejas N veces)
+      function prepareQueue() {
+        const lvl = state.json.levels[state.levelName];
+        const repeats =
+          Number($('#repeatsInput').value) ||
+          window.GAME_CONFIG.REPEATS_PER_PAIR;
+        const pool = (lvl.pairs || []).map((p, idx) => ({
+          key: `k${idx}`,
+          l: p.l,
+          r: p.r,
+        }));
+        const q = [];
+        for (const item of pool) {
+          for (let i = 0; i < repeats; i++) {
+            q.push({ ...item, inst: `${item.key}_#${i}` });
+          }
+        }
+        shuffle(q);
+        state.queue = q; // cada elemento de la cola representa UNA pareja a acertar
+        state.target = q.length;
+        state.matched = 0;
+        $('#target').textContent = state.target;
+        $('#done').textContent = 0;
+      }
+
+      // Construir las dos columnas iniciales (si hay menos de 5 parejas únicas, se reutiliza)
+      function fillInitial() {
+        state.leftCards = [];
+        state.rightCards = [];
+        while (
+          state.leftCards.length < window.GAME_CONFIG.VISIBLE_PAIRS &&
+          state.queue.length
+        ) {
+          const it = state.queue.shift();
+          state.leftCards.push({
+            key: it.key,
+            inst: it.inst,
+            side: 'l',
+            text: it.l,
+          });
+          state.rightCards.push({
+            key: it.key,
+            inst: it.inst,
+            side: 'r',
+            text: it.r,
+          });
+        }
+        // Si no hay suficientes para 5 (nivel muy pequeño), duplica de la cola ya usada
+        while (
+          state.leftCards.length < window.GAME_CONFIG.VISIBLE_PAIRS &&
+          state.rightCards.length
+        ) {
+          const idx = Math.floor(Math.random() * state.rightCards.length);
+          const tmpR = state.rightCards[idx];
+          state.leftCards.push({
+            key: tmpR.key,
+            inst: `dupL_${idx}_${Math.random()}`,
+            side: 'l',
+            text:
+              (
+                state.json.levels[state.levelName].pairs.find(
+                  (p) => p.r === tmpR.text
+                ) || {}
+              ).l || tmpR.text,
+          });
+        }
+        shuffle(state.leftCards);
+        shuffle(state.rightCards);
+        renderColumns();
+      }
+
+      function renderColumns() {
+        const tpl = $('#btnTpl');
+        const left = $('#leftList');
+        const right = $('#rightList');
+        left.innerHTML = '';
+        right.innerHTML = '';
+        const make = (c) => {
+          const n = tpl.content.firstElementChild.cloneNode(true);
+          n.textContent = c.text;
+          n.dataset.key = c.key;
+          n.dataset.side = c.side;
+          n.dataset.inst = c.inst;
+          n.addEventListener('click', () => onCardClick(n));
+          return n;
+        };
+        state.leftCards.forEach((c) => left.appendChild(make(c)));
+        state.rightCards.forEach((c) => right.appendChild(make(c)));
+        $('#board').hidden = false;
+      }
+
+      function startGame() {
+        resetGame();
+        prepareQueue();
+        fillInitial();
+        state.score = 0;
+        updateHUD();
+        // tiempo
+        state.timeLimit =
+          Number($('#timeInput').value) || (state.json.meta?.defaultTime ?? 90);
+        tickStart();
+        $('#playBtn').disabled = true;
+      }
+
+      function resetGame() {
+        clearInterval(state.timer);
+        state.timer = null;
+        $('#timeBar').style.inset = `0 100% 0 0`;
+        $('#board').hidden = true;
+        state.first = null;
+        state.lock = false;
+        state.leftCards = [];
+        state.rightCards = [];
+        state.queue = [];
+        state.score = 0;
+        state.matched = 0;
+        state.target = 0;
+        $('#score').textContent = '0';
+        $('#done').textContent = '0';
+        $('#target').textContent = '0';
+        $('#playBtn').disabled = false;
+      }
+
+      function tickStart() {
+        state.tStart = performance.now();
+        const limitMs = state.timeLimit * 1000;
+        state.timer = setInterval(() => {
+          const t = performance.now() - state.tStart;
+          const left = Math.max(0, limitMs - t);
+          const pct = 1 - left / limitMs;
+          $('#timeBar').style.inset = `0 ${(pct * 100).toFixed(2)}% 0 0`;
+          if (left <= 0) {
+            endGame(false);
+          }
+        }, 50);
+      }
+
+      function remaining() {
+        return Math.max(
+          0,
+          state.timeLimit - (performance.now() - state.tStart) / 1000
+        );
+      }
+
+      function onCardClick(btn) {
+        if (state.lock || !state.timer) return;
+        btn.classList.add('selected');
+        if (!state.first) {
+          state.first = btn;
+          return;
+        }
+        if (btn === state.first) {
+          return;
+        }
+
+        // Deben ser lados opuestos y compartir key
+        const a = state.first,
+          b = btn;
+        state.lock = true;
+        const ok =
+          a.dataset.side !== b.dataset.side && a.dataset.key === b.dataset.key;
+
+        if (ok) {
+          onMatch(a, b);
+        } else {
+          onWrong(a, b);
+        }
+      }
+
+      function onMatch(a, b) {
+        a.classList.add('matched');
+        b.classList.add('matched');
+        state.score += window.GAME_CONFIG.CORRECT_POINTS;
+        state.matched++;
+        updateHUD();
+
+        // Eliminar del estado: quitar UN elemento con esa key por lado
+        const removeByKey = (arr, key) => {
+          const idx = arr.findIndex((x) => x.key === key);
+          if (idx >= 0) arr.splice(idx, 1);
+        };
+        removeByKey(state.leftCards, a.dataset.key);
+        removeByKey(state.rightCards, b.dataset.key);
+
+        // Añadir siguiente pareja si queda cola
+        if (state.queue.length) {
+          const it = state.queue.shift();
+          state.leftCards.push({
+            key: it.key,
+            inst: it.inst,
+            side: 'l',
+            text: it.l,
+          });
+          state.rightCards.push({
+            key: it.key,
+            inst: it.inst,
+            side: 'r',
+            text: it.r,
+          });
+        }
+
+        // Reordenar ambas columnas ANTES de permitir clics de nuevo
+        setTimeout(() => {
+          shuffle(state.leftCards);
+          shuffle(state.rightCards);
+          renderColumns();
+          state.first = null;
+          state.lock = false;
+          if (state.matched >= state.target) {
+            endGame(true);
+          }
+        }, 220);
+      }
+
+      function onWrong(a, b) {
+        state.score = Math.max(
+          0,
+          state.score - window.GAME_CONFIG.WRONG_PENALTY
+        );
+        a.classList.add('wrong');
+        b.classList.add('wrong');
+        setTimeout(() => {
+          a.classList.remove('selected', 'wrong');
+          b.classList.remove('selected', 'wrong');
+          state.first = null;
+          state.lock = false;
+          updateHUD();
+        }, 300);
+      }
+
+      function updateHUD() {
+        $('#score').textContent = state.score;
+        $('#done').textContent = state.matched;
+      }
+
+      function endGame(completed) {
+        clearInterval(state.timer);
+        state.timer = null;
+        $('#playBtn').disabled = false;
+        state.lock = true;
+        const total = Number(localStorage.getItem(totalKey) || 0) + state.score;
+        localStorage.setItem(totalKey, String(total));
+        $('#totalScore').textContent = total;
+
+        if (completed) {
+          alert(`¡Enhorabuena! Nivel completado.
+      Puntos: ${state.score}`);
+        } else {
+          alert(
+            `Tiempo agotado. Progreso ${state.matched}/${state.target}. Puntos: ${state.score}`
+          );
+        }
+      }
+
+      // JSON editor
+      function onSaveJson() {
+        try {
+          const obj = JSON.parse($('#jsonEditor').value);
+          state.json = obj;
+          saveVocab(obj);
+          alert('JSON guardado ✅');
+        } catch (e) {
+          alert('JSON inválido ❌: ' + e.message);
+        }
+      }
+      function onDownloadJson() {
+        const blob = new Blob([$('#jsonEditor').value], {
+          type: 'application/json',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = Object.assign(document.createElement('a'), {
+          href: url,
+          download: 'match-madness-levels.json',
+        });
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+      function onUploadJson(e) {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          $('#jsonEditor').value = String(r.result || '');
+        };
+        r.readAsText(f);
+      }
+
+      // Boot
+      init();
+    </script>
+  </body>
+</html>
